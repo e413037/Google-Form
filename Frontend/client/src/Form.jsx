@@ -1,96 +1,54 @@
-import React, { useState } from "react";
-import "./Form.css";
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
 
-function GoogleFormClone() {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    message: "",
-  });
+const app = express();
 
-  const [showSuccess, setShowSuccess] = useState(false);
+// Enable CORS for frontend
+app.use(cors());
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+// Parse JSON body
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+// Connect to MongoDB
+mongoose.connect(
+  "mongodb+srv://abdulkalam8159_db_user:UIFmNjGuQlhzFEJg@abdul.6lsdera.mongodb.net/?appName=Abdul",
+  { useNewUrlParser: true, useUnifiedTopology: true }
+)
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch((err) => console.log(err));
 
-    try {
-      const response = await fetch("http://localhost:5000/api/form", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+// Schema & Model
+const FormData = mongoose.model(
+  "FormData",
+  new mongoose.Schema({
+    name: String,
+    email: String,
+    message: String,
+    date: { type: Date, default: Date.now },
+  })
+);
 
-      const data = await response.json();
+// POST Route - Save form data
+app.post("/api/form", async (req, res) => {
+  try {
+    const { name, email, message } = req.body;
+    const newData = new FormData({ name, email, message });
+    await newData.save();
+    res.json({ success: true, message: "Form submitted successfully!" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Error saving form data" });
+  }
+});
 
-      if (response.ok && data.success) {
-        setShowSuccess(true);
-        setFormData({ name: "", email: "", message: "" });
-        setTimeout(() => setShowSuccess(false), 3000);
-      } else {
-        alert("Failed to submit form ❌");
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Server not responding. Check if backend is running.");
-    }
-  };
+// GET Route - View all submissions
+app.get("/api/form", async (req, res) => {
+  const data = await FormData.find();
+  res.json(data);
+});
 
-  return (
-    <div className="form-body">
-      <div className="form-container slideIn">
-        <h2>Google Form </h2>
-        <form onSubmit={handleSubmit}>
-          <div className="input-box">
-            <label>Name</label>
-            <input
-              type="text"
-              name="name"
-              placeholder="Enter your name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <div className="input-box">
-            <label>Email</label>
-            <input
-              type="email"
-              name="email"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <div className="input-box">
-            <label>Message</label>
-            <textarea
-              name="message"
-              rows="4"
-              placeholder="Your message"
-              value={formData.message}
-              onChange={handleChange}
-              required
-            ></textarea>
-          </div>
-
-          <button type="submit">Submit</button>
-
-          {showSuccess && (
-            <p className="success-message">Form Submitted Successfully ✅</p>
-          )}
-        </form>
-      </div>
-    </div>
-  );
-}
-
-export default GoogleFormClone;
+// Start server on port 5000
+const PORT = 5000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
